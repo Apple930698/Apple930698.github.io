@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2027新年倒计时 - 跨设备实时版</title>
+    <style>
+        /* 全局样式 */
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Microsoft YaHei', sans-serif; }
+        body { background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); color: #fff; min-height: 100vh; overflow-x: hidden; flex-direction: column; align-items: center; justify-content: center; position: relative; display: flex; }
+        .container { text-align: center; z-index: 10; padding: 20px; max-width: 800px; width: 100%; }
+        h1 { font-size: 3.5rem; margin-bottom: 20px; text-shadow: 0 0 10px #ffcc00, 0 0 20px #ff9900; animation: glow 2s infinite alternate; }
+        .subtitle { font-size: 1.5rem; margin-bottom: 20px; color: #ffcc00; text-shadow: 0 0 5px #ff9900; }
+        .countdown { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; margin-bottom: 30px; }
+        .time-unit { background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 204, 0, 0.3); border-radius: 10px; padding: 20px; min-width: 120px; box-shadow: 0 0 15px rgba(255, 204, 0, 0.2); transition: transform 0.3s; }
+        .time-unit:hover { transform: translateY(-5px); background: rgba(255, 204, 0, 0.15); }
+        .time-value { font-size: 3rem; font-weight: bold; color: #ffcc00; text-shadow: 0 0 10px #ff9900; }
+        .time-label { font-size: 1rem; margin-top: 5px; color: #ccc; }
+        .message { font-size: 1.2rem; margin-top: 20px; padding: 20px; background: rgba(255, 255, 255, 0.1); border-radius: 10px; line-height: 1.6; display: none; }
+        .firework { position: absolute; width: 5px; height: 5px; border-radius: 50%; animation: explode 1s ease-out forwards; opacity: 0; }
+        @keyframes glow { from { text-shadow: 0 0 10px #ffcc00, 0 0 20px #ff9900; } to { text-shadow: 0 0 20px #ffcc00, 0 0 30px #ff9900, 0 0 40px #ff6600; } }
+        @keyframes explode { 0% { transform: scale(0); opacity: 1; } 100% { transform: scale(20); opacity: 0; } }
+        .stars { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+        .star { position: absolute; width: 2px; height: 2px; background: white; border-radius: 50%; animation: twinkle 3s infinite; }
+        @keyframes twinkle { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; } }
+        .footer { margin-top: 40px; font-size: 0.9rem; color: #aaa; z-index: 10; }
+        .celebration { font-size: 1.8rem; margin-top: 30px; padding: 20px; background: linear-gradient(45deg, #ff3300, #ffcc00); border-radius: 15px; display: none; animation: pulse 1.5s infinite; font-weight: bold; }
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+        .btn { background: linear-gradient(45deg, #ff3300, #ff9900); color: white; border: none; padding: 12px 30px; border-radius: 25px; font-size: 1.1rem; cursor: pointer; margin-top: 20px; transition: all 0.3s; box-shadow: 0 5px 15px rgba(255, 51, 0, 0.4); }
+        .btn:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(255, 51, 0, 0.6); }
+        .btn:active { transform: translateY(1px); }
+        .confetti { position: absolute; width: 10px; height: 10px; background: #ffcc00; animation: fall 5s linear infinite; z-index: 2; }
+        @keyframes fall { to { transform: translateY(100vh) rotate(360deg); } }
+        
+        /* P2P连接面板 */
+        .p2p-panel {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 204, 0, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px auto;
+            max-width: 600px;
+            text-align: left;
+        }
+
+        .p2p-panel h3 {
+            margin-bottom: 15px;
+            color: #ffcc00;
+            text-align: center;
+        }
+
+        .p2p-panel input, .p2p-panel textarea {
+            width: 100%;
+            padding: 10px;
+            margin: 8px 0;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 204, 0, 0.3);
+            border-radius: 8px;
+            color: white;
+            font-family: monospace;
+        }
+
+        .p2p-panel button {
+            background: linear-gradient(45deg, #00cc66, #00ff88);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 10px;
+            margin-right: 10px;
+            transition: all 0.3s;
+        }
+
+        .p2p-panel button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 255, 136, 0.4);
+        }
+
+        .p2p-panel button.danger {
+            background: linear-gradient(45deg, #ff3300, #ff6600);
+        }
+
+        .room-info {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-family: monospace;
+            word-break: break-all;
+            text-align: center;
+        }
+
+        .connection-status-bar {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+666;
+        }
+
+        .status-dot.connected { background: #00ff88; box-shadow: 0 0 8px #00ff88; }
+        .status-dot.connecting { background: #ffcc00; animation: blink 1s infinite; }
+        .status-dot.disconnected { background: #ff6666; }
+
+        @keyframes blink { 50% { opacity: 0.3; } }
+
+        .p2p-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .p2p-actions button {
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .message-log {
+            max-height: 100px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 8px;
+            border-radius: 8px;
+            margin-top: 10px;
+            font-size: 0.85rem;
+            font-family: monospace;
+        }
+
+        .message-log div {
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .message-log div:last-child {
+            border-bottom: none;
+        }
+
+        /* 互动面板（连接后显示） */
+        .interaction-panel {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 204, 0, 0.2);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px auto;
+            max-width: 600px;
+            min-height: 120px;
+            position: relative;
+            overflow: hidden;
+            display: none;
+        }
+
+        .presence-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+
+        .presence-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #666;
+            animation: pulse-dot 2s infinite;
+        }
+
+        .presence-dot.active {
+            background: #00ff88;
+            box-shadow: 0 0 10px #00ff88;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        .notification-area {
+            min-height: 40px;
+            font-size: 0.95rem;
+            color: #ffcc00;
+            text-align: left;
+            line-height: 1.5;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            margin-top: 10px;
+                       border-radius: 50%;
+            background: # max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .user-list {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .user-badge {
+            background: rgba(255, 204, 0, 0.2);
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.85rem;
+            border: 1px solid rgba(255, 204, 0, 0.3);
+            animation: fadeIn 0.5s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .typing-indicator {
+            font-size: 0.8rem;
+            color: #888;
+            font-style: italic;
+            margin-top: 5px;
+            min-height: 18px;
+        }
+
+        .interaction-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .icon-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 204, 0, 0.3);
+            color: #ffcc00;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+
+        .icon-btn:hover {
+            background: rgba(255, 204, 0, 0.2);
+            transform: scale(1.05);
+        }
+
+        .welcome-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(45deg, #ff3300, #ffcc00);
+            padding: 30px 50px;
+            border-radius: 20px;
+            font-size: 2rem;
+            font-weight: bold;
+            z-index: 2000;
+            animation: welcomePop 1s ease-out forwards;
+            pointer-events: none;
+            display: none;
+            text-align: center;
+        }
+
+        @keyframes welcomePop {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+            50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+        }
+
+        @media (max-width: 600px) {
+            h1 { font-size: 2.5rem; }
+            .subtitle { font-size: 1.2rem; }
+            .time-unit { min-width: 80px; padding: 15px; }
+            .time-value { font-size: 2rem; }
+            .p2p-panel, .interaction-panel { padding: 15px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- 连接状态栏 -->
+    <div class="connection-status-bar">
+        <div class="status-dot disconnected" id="statusDot"></div>
+        <span id="statusText">未连接</span>
+    </div>
+
+    <!-- 欢迎动画 -->
+    <div class="welcome-message" id="welcomeMessage"></div>
+
+    <!-- P2P连接面板 -->
+    <div class="p2p-panel" id="p2pPanel">
+        <h3>🔗 P2P 跨设备连接（2027跨年）</h3>
+        
+        <div id="roleSelection">
+            <p style="text-align: center; margin-bottom: 15px;">
+                请选择您的角色：
+            </p>
+            <div class="p2p-actions">
+                <button onclick="createRoom()">🎯 我是发起者（创建房间）</button>
+                <button onclick="showJoinForm()">👥 我是加入者（输入房间号）</button>
+            </div>
+        </div>
+
+        <div id="createRoomForm" style="display: none;">
+            <p>1. 点击生成房间号</p>
+            <button onclick="generateRoomId()">生成房间号</button>
+            <div class="room-info" id="myRoomId" style="display: none;"></div>
+            <p style="margin-top: 10px;">2. 将房间号分享给朋友</p>
+            <p style="font-size: 0.85rem; color: #aaa;">3. 等待朋友加入...</p>
+            <button class="danger" onclick="resetConnection()">取消</button>
+        </div>
+
+        <div id="joinRoomForm" style="display: none;">
+            <p>输入朋友给你的房间号：</p>
+            <input type="text" id="friendRoomId" placeholder="粘贴房间号">
+            <button onclick="joinRoom()">加入房间</button>
+            <button class="danger" onclick="resetConnection()">取消</button>
+        </div>
+
+        <div id="connectionLog" class="message-log" style="display: none;"></div>
+    </div>
+
+    <!-- 互动面板（连接后显示） -->
+    <div class="interaction-panel" id="interactionPanel">
+        <div class="presence-indicator">
+            <div class="presence-dot" id="presenceDot"></div>
+            <span id="presenceText">等待对方...</span>
+        </div>
+        
+        <div class="user-list" id="userList"></div>
+        
+        <div class="notification-area" id="notificationArea">
+            💡 连接成功！可以开始互动了！
+        </div>
+
+        <div class="typing-indicator" id="typingIndicator"></div>
+
+        <div class="interaction-buttons">
+            <button class="icon-btn" onclick="sendData('👋打招呼')">👋 打招呼</button>
+            <button class="icon-btn" onclick="sendData('🎉 2027新年快乐！')">🎉 2027新年快乐</button>
+            <button class="icon-btn" onclick="sendData('❤️爱你哟')">❤️ 爱你哟</button>
+            <button class="icon-btn" onclick="sendData('🚀一起倒计时')">🚀 一起倒计时</button>
+            <button class="icon-btn" onclick="sendData('🎊 一起庆祝')">🎊 一起庆祝</button>
+        </div>
+    </div>
+
+    <!-- 主倒计时容器 -->
+    <div class="container" id="mainContainer" style="display: none;">
+        <h1>2027新年倒计时</h1>
+        <div class="subtitle">距离2027年还有</div>
+        
+        <div class="countdown">
+            <div class="time-unit">
+                <div class="time-value" id="days">00</div>
+                <div class="time-label">天</div>
+            </div>
+            <div class="time-unit">
+                <div class="time-value" id="hours">00</div>
+                <div class="time-label">小时</div>
+            </div>
+            <div class="time-unit">
+                <div class="time-value" id="minutes">00</div>
+                <div class="time-label">分钟</div>
+            </div>
+            <div class="time-unit">
+                <div class="time-value" id="seconds">00</div>
+                <div class="time-label">秒</div>
+            </div>
+        </div>
+
+        <button class="btn" id="celebrateBtn">立即庆祝</button>
+
+        <div class="message" id="message">
+            愿2027年带给你无尽的喜悦、健康的身体、成功的事业和真挚的爱情。 
+            新年快乐，万事如意！
+        </div>
+
+        <div class="celebration" id="celebration">
+            🎉 新年快乐！2027年大吉！ 🎆
+        </div>
+    </div>
+
+    <div class="footer" id="footer" style="display: none;">
+        © 2026 新年倒计时 | P2P跨设备版 | 祝您2027新年快乐
+    </div>
+
+    <!-- 引入 PeerJS -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+
+    <script>
+        // ==================== P2P 连接管理 ====================
+        
+        let peer = null;
+        let conn = null;
+        let isP2PConnected = false;
+        let myPeerId = null;
+        let friendPeerId = null;
+
+        // 日志函数
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('connectionLog');
+            if (!logDiv) return;
+            
+            const entry = document.createElement('div');
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            
+            if (type === 'success') entry.style.color = '#00ff88';
+            else if (type === 'error') entry.style.color = '#ff6666';
+            else if (type === 'warning') entry.style.color = '#ffcc00';
+            
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        // 更新状态栏
+        function updateStatus(status, dotClass) {
+            const statusText = document.getElementById('statusText');
+            const statusDot = document.getElementById('statusDot');
+            
+            statusText.textContent = status;
+            statusDot.className = `status-dot ${dotClass}`;
+        }
+
+        // 创建房间（发起者）
+        function createRoom() {
+            document.getElementById('roleSelection').style.display = 'none';
+            document.getElementById('createRoomForm').style.display = 'block';
+            document.getElementById('connectionLog').style.display = 'block';
+            
+            updateStatus('初始化...', 'connecting');
+            log('正在初始化 PeerJS...');
+
+            // 初始化 Peer
+            peer = new Peer(null, {
+                debug: 2,
+                config: {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' }
+                    ]
+                }
+            });
+
+            peer.on('open', (id) => {
+                myPeerId = id;
+                log(`✅ PeerID 生成: ${id}`, 'success');
+                updateStatus('等待加入', 'connecting');
+            });
+
+            peer.on('connection', (connection) => {
+                conn = connection;
+                friendPeerId = conn.peer;
+                setupConnection();
+                log(`🤝 朋友已连接: ${friendPeerId}`, 'success');
+            });
+
+            peer.on('error', (err) => {
+                log(`❌ 错误: ${err.type}`, 'error');
+                updateStatus('连接错误', 'disconnected');
+            });
+        }
+
+        // 显示加入表单
+        function showJoinForm() {
+            document.getElementById('roleSelection').style.display = 'none';
+            document.getElementById('joinRoomForm').style.display = 'block';
+            document.getElementById('connectionLog').style.display = 'block';
+            
+            updateStatus('初始化...', 'connecting');
+            log('正在初始化 PeerJS...');
+
+            // 初始化 Peer
+            peer = new Peer(null, {
+                debug: 2,
+                config: {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' }
+                    ]
+                }
+            });
+
+            peer.on('open', (id) => {
+                myPeerId = id;
+                log(`✅ PeerID 生成: ${id}`, 'success');
+                updateStatus('准备连接', 'connecting');
+            });
+
+            peer.on('error', (err) => {
+                log(`❌ 错误: ${err.type}`, 'error');
+                updateStatus('连接错误', 'disconnected');
+            });
+        }
+
+        // 生成房间号
+        function generateRoomId() {
+            if (!myPeerId) {
+                log('❌ 等待 Peer 初始化...', 'error');
+                return;
+            }
+            
+            const roomId = myPeerId;
+            const roomIdDiv = document.getElementById('myRoomId');
+            roomIdDiv.textContent = `房间号: ${roomId}`;
+            roomIdDiv.style.display = 'block';
+            
+            // 复制到剪贴板
+            navigator.clipboard.writeText(roomId).then(() => {
+                log('✅ 房间号已复制到剪贴板', 'success');
+                showNotification('房间号已复制，分享给朋友吧！');
+            });
+        }
+
+        // 加入房间
+        function joinRoom() {
+            const roomId = document.getElementById('friendRoomId').value.trim();
+            
+            if (!roomId) {
+                log('❌ 请输入房间号', 'error');
+                return;
+            }
+
+            if (!peer) {
+                log('❌ Peer 未初始化', 'error');
+                return;
+            }
+
+            log(`正在连接房间: ${roomId}`, 'warning');
+            updateStatus('连接中...', 'connecting');
+
+            conn = peer.connect(roomId);
+            friendPeerId = roomId;
+
+            conn.on('open', () => {
+                log(`✅ 连接成功!`, 'success');
+                setupConnection();
+            });
+
+            conn.on('error', (err) => {
+                log(`❌ 连接失败: ${err}`, 'error');
+                updateStatus('连接失败', 'disconnected');
+            });
+        }
+
+        // 设置连接处理
+        function setupConnection() {
+            if (!conn) return;
+
+            isP2PConnected = true;
+            updateStatus('已连接 P2P', 'connected');
+            
+            // 显示互动面板
+            document.getElementById('p2pPanel').style.display = 'none';
+            document.getElementById('interactionPanel').style.display = 'block';
+            document.getElementById('mainContainer').style.display = 'block';
+            document.getElementById('footer').style.display = 'block';
+
+            // 更新UI
+            document.getElementById('presenceDot').classList.add('active');
+            document.getElementById('presenceText').textContent = 'P2P 连接已建立';
+            
+            // 显示欢迎
+            showWelcomeMessage('🎉 连接成功！');
+            showNotification('✅ P2P 连接建立，数据直接传输，不经过服务器！');
+
+            // 监听数据
+            conn.on('data', (data) => {
+                handleReceivedData(data);
+            });
+
+            // 监听连接关闭
+            conn.on('close', () => {
+                log('❌ 对方已断开连接', 'error');
+                updateStatus('连接断开', 'disconnected');
+                document.getElementById('presenceDot').classList.remove('active');
+                document.getElementById('presenceText').textContent = '连接已断开';
+                showNotification('👋 对方已离开');
+                
+                // 重新显示连接面板
+                setTimeout(() => {
+                    resetConnection();
+                }, 2000);
+            });
+
+            // 启动倒计时（如果还没启动）
+            if (!window.countdownStarted) {
+                initializeCountdown();
+                window.countdownStarted = true;
+            }
+        }
+
+        // 发送数据
+        function sendData(data) {
+            if (!isP2PConnected || !conn) {
+                showNotification('❌ 请先建立连接');
+                return;
+            }
+
+            const message = {
+                type: 'message',
+                data: data,
+                username: getUsername(),
+                timestamp: Date.now()
+            };
+
+            conn.send(message);
+            showNotification(`💬 我: ${data}`, true);
+
+            // 本地触发烟花
+            for (let i = 0; i < 3; i++) {
+                setTimeout(() => {
+                    const x = Math.random() * window.innerWidth;
+                    const y = Math.random() * window.innerHeight * 0.7;
+                    createFirework(x, y);
+                }, i * 150);
+            }
+        }
+
+        // 处理接收的数据
+        function handleReceivedData(data) {
+            if (data.type === 'message') {
+                showNotification(`💬 ${data.username}: ${data.data}`, true);
+                triggerRemoteFireworks();
+            } else if (data.type === 'typing') {
+                const indicator = document.getElementById('typingIndicator');
+                indicator.textContent = `${data.username} 正在输入...`;
+                clearTimeout(window.typingTimeout);
+                window.typingTimeout = setTimeout(() => {
+                    indicator.textContent = '';
+                }, 1500);
+            } else if (data.type === 'celebrate') {
+                showNotification(`🎊 ${data.username} 在庆祝！`, true);
+                triggerRemoteFireworks();
+            }
+        }
+
+        // 重置连接
+        function resetConnection() {
+            if (conn) {
+                conn.close();
+                conn = null;
+            }
+            if (peer) {
+                peer.destroy();
+                peer = null;
+            }
+            
+            isP2PConnected = false;
+            myPeerId = null;
+            friendPeerId = null;
+
+            // 重置UI
+            document.getElementById('p2pPanel').style.display = 'block';
+            document.getElementById('roleSelection').style.display = 'block';
+            document.getElementById('createRoomForm').style.display = 'none';
+            document.getElementById('joinRoomForm').style.display = 'none';
+            document.getElementById('connectionLog').style.display = 'none';
+            document.getElementById('interactionPanel').style.display = 'none';
+            document.getElementById('mainContainer').style.display = 'none';
+            document.getElementById('footer').style.display = 'none';
+            
+            updateStatus('未连接', 'disconnected');
+            log('连接已重置', 'warning');
+        }
+
+        // ==================== 通知系统 ====================
+        
+        function showNotification(message, highlight = false) {
+            const notificationArea = document.getElementById('notificationArea');
+            if (!notificationArea) return;
+
+            const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+            const div = document.createElement('div');
+            div.textContent = `[${time}] ${message}`;
+            div.style.marginBottom = '5px';
+            
+            if (highlight) {
+                div.style.color = '#ff9900';
+                div.style.fontWeight = 'bold';
+            }
+
+            notificationArea.insertBefore(div, notificationArea.firstChild);
+            
+            while (notificationArea.children.length > 8) {
+                notificationArea.removeChild(notificationArea.lastChild);
+            }
+        }
+
+        function showWelcomeMessage(text) {
+            const welcomeMessage = document.getElementById('welcomeMessage');
+            welcomeMessage.textContent = text;
+            welcomeMessage.style.display = 'block';
+            setTimeout(() => {
+                welcomeMessage.style.display = 'none';
+            }, 1500);
+        }
+
+        function triggerRemoteFireworks() {
+            for (let i = 0; i < 5; i++) {
+                setTimeout(() => {
+                    const x = Math.random() * window.innerWidth;
+                    const y = Math.random() * window.innerHeight * 0.7;
+                    createFirework(x, y);
+                }, i * 100);
+            }
+            createConfetti();
+        }
+
+        // ==================== 用户信息 ====================
+        
+        function getUsername() {
+            let username = localStorage.getItem('countdown_username');
+            if (!username) {
+                const adjectives = ['开心', '快乐', '幸福', '甜蜜', '温暖', '闪耀', '勇敢', '温柔'];
+                const nouns = ['小熊', '星星', '月亮', '太阳', '糖果', '彩虹', '烟花', '天使'];
+                username = adjectives[Math.floor(Math.random() * adjectives.length)] + 
+                          nouns[Math.floor(Math.random() * nouns.length)];
+                localStorage.setItem('countdown_username', username);
+            }
+            return username;
+        }
+
+        // ==================== 倒计时逻辑 ====================
+        
+        function initializeCountdown() {
+            // 目标时间：2027年1月1日 00:00:00
+            const TARGET_DATE = new Date('2027-01-01T00:00:00');
+            let targetTime = TARGET_DATE.getTime();
+
+            function createStars() {
+                const starsContainer = document.createElement('div');
+                starsContainer.className = 'stars';
+                starsContainer.id = 'stars';
+                document.body.appendChild(starsContainer);
+
+                for (let i = 0; i < 100; i++) {
+                    const star = document.createElement('div');
+                    star.classList.add('star');
+                    star.style.left = Math.random() * 100 + '%';
+                    star.style.top = Math.random() * 100 + '%';
+                    star.style.animationDelay = Math.random() * 3 + 's';
+                    starsContainer.appendChild(star);
+                }
+            }
+
+            function createFirework(x, y) {
+                const colors = ['#ffcc00', '#ff6600', '#ff0066', '#00ccff', '#00ff99'];
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                for (let i = 0; i < 30; i++) {
+                    const firework = document.createElement('div');
+                    firework.classList.add('firework');
+                    firework.style.backgroundColor = color;
+                    firework.style.left = x + 'px';
+                    firework.style.top = y + 'px';
+                    const angle = Math.random() * Math.PI * 2;
+                    const distance = 50 + Math.random() * 100;
+                    const tx = Math.cos(angle) * distance;
+                    const ty = Math.sin(angle) * distance;
+                    firework.style.transform = `translate(${tx}px, ${ty}px)`;
+                    document.body.appendChild(firework);
+                    setTimeout(() => firework.parentNode && firework.parentNode.removeChild(firework), 1000);
+                }
+            }
+
+            function createConfetti() {
+                const colors = ['#ffcc00', '#ff3300', '#00ccff', '#00ff99', '#ff0066'];
+                for (let i = 0; i < 50; i++) {
+                    const confetti = document.createElement('div');
+                    confetti.classList.add('confetti');
+                    confetti.style.left = Math.random() * 100 + '%';
+                    confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                    confetti.style.animationDelay = Math.random() * 5 + 's';
+                    confetti.style.animationDuration = (3 + Math.random() * 4) + 's';
+                    document.body.appendChild(confetti);
+                    setTimeout(() => confetti.parentNode && confetti.parentNode.removeChild(confetti), 8000);
+                }
+            }
+
+            function updateCountdown() {
+                const now = Date.now();
+                const diff = targetTime - now;
+                
+                if (diff <= 0) {
+                    ['days','hours','minutes','seconds'].forEach(id => document.getElementById(id).textContent = '00');
+                    document.getElementById('message').style.display = 'block';
+                    document.getElementById('celebration').style.display = 'block';
+                    document.getElementById('celebrateBtn').style.display = 'none';
+                    
+                    setInterval(() => {
+                        const x = Math.random() * window.innerWidth;
+                        const y = Math.random() * window.innerHeight * 0.7;
+                        createFirework(x, y);
+                    }, 300);
+                    createConfetti();
+                    return false;
+                }
+                
+                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+                
+                document.getElementById('days').textContent = days.toString().padStart(2, '0');
+                document.getElementById('hours').textContent = hours.toString().padStart(2, '0');
+                document.getElementById('minutes').textContent = minutes.toString().padStart(2, '0');
+                document.getElementById('seconds').textContent = seconds.toString().padStart(2, '0');
+                
+                return true;
+            }
+
+            function startCountdown() {
+                let lastUpdate = Date.now();
+                function loop() {
+                    const now = Date.now();
+                    const elapsed = now - lastUpdate;
+                    if (elapsed > 1100) {
+                        const correction = elapsed - 1000;
+                        targetTime += correction;
+                    }
+                    lastUpdate = now;
+                    if (updateCountdown()) {
+                        requestAnimationFrame(loop);
+                    }
+                }
+                requestAnimationFrame(loop);
+            }
+
+            function randomFireworks() {
+                setInterval(() => {
+                    if (Math.random() > 0.7) {
+                        const x = Math.random() * window.innerWidth;
+                        const y = Math.random() * window.innerHeight * 0.7;
+                        createFirework(x, y);
+                    }
+                }, 2000);
+            }
+
+            createStars();
+            if (Date.now() >= targetTime) {
+                document.getElementById('celebrateBtn').textContent = '现在庆祝';
+                updateCountdown();
+            } else {
+                startCountdown();
+                randomFireworks();
+            }
+
+            document.getElementById('celebrateBtn').addEventListener('click', function() {
+                document.getElementById('message').style.display = 'block';
+                document.getElementById('celebration').style.display = 'block';
+                
+                // 发送庆祝通知
+                if (isP2PConnected && conn) {
+                    conn.send({
+                        type: 'celebrate',
+                        username: getUsername(),
+                        timestamp: Date.now()
+                    });
+                }
+                
+                for (let i = 0; i < 5; i++) {
+                    setTimeout(() => {
+                        const x = Math.random() * window.innerWidth;
+                        const y = Math.random() * window.innerHeight * 0.7;
+                        createFirework(x, y);
+                    }, i * 200);
+                }
+                createConfetti();
+            });
+
+            document.addEventListener('click', function(e) {
+                createFirework(e.clientX, e.clientY);
+            });
+        }
+
+        // 页面卸载清理
+        window.addEventListener('beforeunload', () => {
+            if (conn) conn.close();
+            if (peer) peer.destroy();
+        });
+    </script>
+</body>
+</html>
